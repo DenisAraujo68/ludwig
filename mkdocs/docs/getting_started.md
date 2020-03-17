@@ -27,22 +27,19 @@ The core design principles we baked into the toolbox are:
 Installation
 ============
 
-Ludwig's requirements are the following:
+Ludwig's basic requirements are the following:
 
+- tensorflow
 - numpy
 - pandas
 - scipy
 - scikit-learn
-- scikit-image
-- spacy
-- tensorflow
-- matplotlib
-- seaborn
 - Cython
 - h5py
-- tqdm
 - tabulate
+- tqdm
 - PyYAML
+- absl-py
 
 Ludwig has been developed and tested with Python 3 in mind.
 If you don’t have Python 3 installed, install it by running:
@@ -54,11 +51,14 @@ brew install python3      # on mac
 
 You may want to use a virtual environment to maintain an isolated [Python environment](https://docs.python-guide.org/dev/virtualenvs/).
 
+```
+virtualenv -p python3 venv
+```
+
 In order to install Ludwig just run:
 
 ```
 pip install ludwig
-python -m spacy download en
 ```
 
 or install it by building the source code from the repository:
@@ -69,12 +69,47 @@ cd ludwig
 virtualenv -p python3 venv
 source venv/bin/activate
 pip install -r requirements.txt
-python -m spacy download en
 python setup.py install
 ```
 
-Beware that in the `requirements.txt` file the `tensorflow` package is the regular one, not the GPU enabled one.
-To install the GPU enabled one replace it with `tensorflow-gpu`.
+This will install only Ludwig-s basic requirements, different feature types require different dependencies.
+We divided them as different extras so that users could install only the ones they actually need.
+
+Text features extra packages can be installed with `pip install ludwig[text]` and include:
+
+- spacy
+- bert-tensorflow
+
+If you intend to use text features and want to use [spaCy](http://spacy.io) based language tokenizers, install language specific models with:
+```
+python -m spacy download <language_code>
+```
+More details in the [User Guide](user_guide.md#spacy-based-word-format-options).
+
+Image features extra packages can be installed with `pip install ludwig[image]` and include:
+
+scikit-image
+
+Audio features extra packages can be installed with `pip install ludwig[audio]` and include:
+
+- soundfile
+
+Visualization extra packages can be installed with `pip install ludwig[viz]` and include:
+
+- matplotlib
+- seaborn
+
+Model serving extra packages can be installed with `pip install ludwig[serve]` and include:
+
+- fastapi
+- uvicorn
+- pydantic
+- python-multipart
+
+Any combination of extra packages can be installed at the same time with `pip install ludwig[extra1,extra2,...]` like for instance `pip install ludwig[text,viz]`.
+The full set of dependencies can be installed with `pip install ludwig[full]`.
+
+Beware that the `tensorflow` package contained in the `requirements.txt` file is the GPU version which works only on machines without a GPU and reverts back to CPU computation. If you prefer to install the CPU version, uninstall `tensorflow-gpu` and replace it with `tensorflow` after having installed `ludwig`, being careful at matching the version ludwig requires, as shown in `requirements.txt`.
 
 If you want to train Ludwig models in a distributed way, you need to also install the `horovod` and the `mpi4py` packages.
 Please follow the instructions on [Horovod's repository](https://github.com/uber/horovod) to install it.
@@ -102,6 +137,10 @@ Currently the available datatypes in Ludwig are:
 - text
 - timeseries
 - image
+- audio
+- date
+- h3
+- vector
 
 The model definition can contain additional information, in particular how to preprocess each column in the CSV, which encoder and decoder to use for each one, feature hyperparameters and training parameters.
 This allows ease of use for novices and flexibility for experts.
@@ -115,7 +154,7 @@ For example, given a text classification dataset like the following:
 | doc_text                              | class    |
 |---------------------------------------|----------|
 | Former president Barack Obama ...     | politics |
-| Juventus hired Cristiano Ronaldo ... | sport    |
+| Juventus hired Cristiano Ronaldo ...  | sport    |
 | LeBron James joins the Lakers ...     | sport    |
 | ...                                   | ...      |
 
@@ -132,7 +171,8 @@ and start the training typing the following command in your console:
 ludwig train --data_csv path/to/file.csv --model_definition "{input_features: [{name: doc_text, type: text}], output_features: [{name: class, type: category}]}"
 ```
 
-and Ludwig will perform a random split of the data, preprocess it, build a WordCNN model (the default for text features) that decodes output classes through a softmax classifier, train the model on the training set until the accuracy on the validation set stops improving.
+where `path/to/file.csv` is the path to a UTF-8 encoded CSV file contaning the dataset in the previous table.
+Ludwig will perform a random split of the data, preprocess it, build a WordCNN model (the default for text features) that decodes output classes through a softmax classifier, train the model on the training set until the accuracy on the validation set stops improving.
 Training progress will be displayed in the console, but TensorBoard can also be used.
 
 If you prefer to use an RNN encoder and increase the number of epochs you want the model to train for, all you have to do is to change the model definition to:
@@ -193,7 +233,7 @@ Programmatic API
 Ludwig also provides a simple programmatic API that allows you to train or load a model and use it to obtain predictions on new data:
 
 ```python
-from ludwig import LudwigModel
+from ludwig.api import LudwigModel
 
 # train a model
 model_definition = {...}
